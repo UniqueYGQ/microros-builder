@@ -1,0 +1,38 @@
+name: Build micro-ROS static library
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone micro_ros_stm32cubemx_utils
+        run: |
+          git clone -b humble https://github.com/micro-ROS/micro_ros_stm32cubemx_utils.git
+
+      - name: Create helper Makefile
+        run: |
+          printf 'print_cflags:\n\t@echo "-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -DUSE_HAL_DRIVER -DSTM32F407xx -O2"\n' > Makefile
+          make print_cflags
+
+      - name: Build with Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/project \
+            --env MICROROS_LIBRARY_FOLDER=micro_ros_stm32cubemx_utils/microros_static_library \
+            microros/micro_ros_static_library_builder:humble
+
+      - name: Verify
+        run: ls -la micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmicroros
+          path: micro_ros_stm32cubemx_utils/microros_static_library/libmicroros/
+          if-no-files-found: error
+          retention-days: 7
